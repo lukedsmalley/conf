@@ -22,7 +22,7 @@ function loadConfigObjectSync(path, checkWrite, objectParser) {
     } catch (err) { throw `Failed to list contents of the configuration directory` }
     for (let entry of entries) {
       let name = parse(entry).name
-      ns[name] = loadPathSync(join(path, entry))
+      ns[name] = loadConfigObjectSync(join(path, entry), checkWrite, objectParser)
     }
     return ns
   } else {
@@ -53,7 +53,7 @@ async function loadConfigObject(path, checkWrite, objectParser) {
     } catch (err) { throw `Failed to list contents of the configuration directory` }
     for (let entry of entries) {
       let name = parse(entry).name
-      ns[name] = await loadFromPath(join(path, entry))
+      ns[name] = await loadConfigObject(join(path, entry), checkWrite, objectParser)
     }
     return ns
   } else {
