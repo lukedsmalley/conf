@@ -146,8 +146,16 @@ function createQueryObject(defaults, config, path, setup) {
 
 const cache = {}
 
-function conf(path, options) {
-  path = resolve(path)
+function conf(...args) {
+  let paths = args.filter(arg => typeof arg === 'string')
+  let options = Object.assign({
+    sync: false,
+    writable: false,
+    reload: false,
+    defaults: {},
+    parse: JSON5.parse,
+    stringify: data => JSON5.stringify(data, null, 2)
+  }, ...args.filter(arg => typeof arg === 'object'))
 
   let setup = Object.assign({
     sync: false,
