@@ -2,112 +2,56 @@
 const fs = require('fs-extra')
 const {join, parse} = require('path')
 const {inherits} = require('util')
+const {parseObjectPath} = require('./path')
 
 module.exports = {
   Directory, File, Map, load
 }
 
 function Map(map) {
-  this._get = function(path) {
-    if (path[0] instanceof Array) {
-      for (let option of path[0]) {
-        let value = this._get([option, ...path.slice(1)])
-        if (value !== undefined) return value
-      }
-      return undefined
-    }
-    
-    if (!map.hasOwnProperty(path[0])) return undefined
-    else if (path.length === 1) return map[path[0]]
-    else if (map[path[0]] instanceof Map) return map[path[0]]._get(path.slice(1))
-    else return undefined
+  this._get = id => map[id]
+
+  this._put = function(id, value) {
+    map[id] = value
+    return true
   }
 
-  this._put = function(path) {
-    if (path[0] instanceof Array) {
-      for (let option of path[0]) {
-        let value = this._get([option, ...path.slice(1)])
-        if (value !== undefined) return value
-      }
-      return undefined
-    }
-    
-    if (!map.hasOwnProperty(path[0])) return undefined
-    else if (path.length === 1) return map[path[0]]
-    else if (map[path[0]] instanceof Map) return map[path[0]]._get(path.slice(1))
-    else return undefined
+  this.raw = function() {
+    let result = {}
+    for (let key of map) {
+      result[key] = map[key] instanceof Map ? map[key].raw() : map[key]
+    return result
   }
 
-  this._putSoft = function(path, value) {
-    if (path[0] instanceof Array) {
-      for (let option of path[0])
-        if (this._put([option, ...path.slice(1)], value))
-          return true
-      return false
-    } else {
-      if (!map.hasOwnProperty(path[0])) return false
-      if (path.length > 1) {
-        return map[path[0]] instanceof Map
-          ? map[path[0]]._putSoft(path.slice(1), value)
-          : false
-      } else {
-        map[path[0]] = value
-        return true
-      }
-    }
-  }
-
-  this._putHard = function(path, value) {
-    if (path[0] instanceof Array) {
-      this._putHard([path[0][0], ...path.slice(1)], value)
-    } else {
-      if (path.length > 1) {
-        if (!map.hasOwnProperty(path[0]) || !(map[path[0]] instanceof Map))
-          map[path[0]] = new Map()
-        map[path[0]]._putHard(path.slice(1), value)
-      } else {
-        map[path[0]] = value
-      }
-    }
-  }
-
-  this._put = function(path, value) {
-    if (!this._putSoft(path, value)) this._putHard(path, value)
-  }
-
-  this.get = path => this._get(parseObjectPath(path))
-  this.put = (path, value) => this._put(parseObjectPath(path), value)
+  this.get = path => parseObjectPath(path).travel(this)
+  this.put = (path, value) => parseObjectPath(path).assign(this, value)
 }
 
 inherits(Directory, Map)
-function Directory(path, map) {
-  this._put = function(path, value) {
-    function canPut(path, value) {
-      if (path[0] instanceof Array) {
-        for (let option of path[0])
-          if (this._put([option, ...path.slice(1)], value, false))
-            return true
-        this._put([path[0][0], ...path.slice(1)], value, true)
-      } else {
-      }
+function Directory(path, options, map) {
+  Map(map)
+
+  this.save = async function() {
+    try {
+      await fs.mkdirs(path)
+    } catch (err) { throw `Failed to create directory '${parse(path).name}' due to ${err}` }
+
+    let dirData = {}
+    for (let key of map) {
+      if (map[key] instanceof Directory || map[key] instanceof File) await map[key].save()
+      else if (map[key] instanceof Map) dirData[key] = map[key].raw()
     }
-    if (path[0] instanceof Array) {
-      for (let option of path[0])
-        if (this._put([option, ...path.slice(1)], value, false))
-          return true
-      this._put([path[0][0], ...path.slice(1)], value, true)
-    } else {
-      if (!map.hasOwnProperty(path[0])) {
-        if (force && path.length > 1) map[path[0]] = new Map()
-        else return false
-      }
-      if (path.length > 1) {
-        return this._put(path.slice(1), value, force)
-      } else {
-        map[path[0]] = value
-        return true
-      }
-    }
+
+    let dirFile = options.dirfile || options.extension || '.conf'
+
+    try {
+      await fs.writeFile(dirFile, options.format.stringify(dirData), {encoding: options.encoding})
+    } catch (err) { throw `Failed to write directory config for '${parse(path).name}' due to ${err}` }
+  }
+
+  this.put = function(path, value) {
+    parseObjectPath(path).assign(this, value)
+    await this.save()
   }
 }
 
@@ -138,7 +82,7 @@ Directory.load = async function(path, options) {
   for (let child of children)
     map[child] = await load(join(path, child), options)
 
-  return new Directory(path, map)
+  return new Directory(path, options, map)
 }
 
 function File(path, writable, map) {
