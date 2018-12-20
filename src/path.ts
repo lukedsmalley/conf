@@ -1,11 +1,11 @@
 
-import {Map} from './map'
+import {Node} from './map'
 
 export {Path}
 
 interface PathComponent {
-  travel(map: Map, force?: boolean): any
-  assign(map: Map, value: any): void
+  travel(map: Node, force?: boolean): any
+  assign(map: Node, value: any, save?: boolean): Promise<void>
 }
 
 class Step implements PathComponent {
@@ -15,33 +15,37 @@ class Step implements PathComponent {
     this.id = id
   }
 
-  travel(map: Map, force?: boolean): any {
+  travel(map: Node, force?: boolean): any {
     if (map.getOwn(this.id) === undefined && force) map.putOwn(this.id, new Map())
     return map.getOwn(this.id)
   }
 
-  assign: (map: Map, value: any) => void = (map, value) => map.putOwn(this.id, value)
+  assign(map: Node, value: any, save?: boolean) {
+    return map.putOwn(this.id, value, save)
+  }
 }
 
 class Path {
   private components: PathComponent[] = []
 
-  push: (component: PathComponent) => void = this.components.push
+  push(component: PathComponent): void {
+    this.components.push(component)
+  }
 
-  travel(map: Map, force?: boolean): any {
+  travel(map: Node, force?: boolean): any {
     for (let component of this.components)
       if ((map = component.travel(map, force)) === undefined)
         return undefined
     return map
   }
 
-  assign(map: Map, value: any) {
+  assign(map: Node, value: any): Promise<void> {
     if (this.components.length < 1) throw 'Cannot assign with empty path'
     let path = this.components.slice()
     while (path.length > 1)
       if (typeof (map = path.shift()!.travel(map, true)) !== 'object')
-        return false
-    path[0].assign(map, value)
+        throw 'Non-object waypoint in path'
+    return path[0].assign(map, value, true)
   }
 
   static parse(query: string): Switch {
@@ -78,9 +82,11 @@ class Path {
 class Switch implements PathComponent {
   private paths: Path[] = []
 
-  push: (path: Path) => void = this.paths.push
+  push(path: Path): void {
+    this.paths.push(path)
+  }
 
-  travel(map: Map, force?: boolean): any {
+  travel(map: Node, force?: boolean): any {
     let result
     for (let path of this.paths)
       if ((result = path.travel(map, force)) !== undefined)
@@ -88,8 +94,8 @@ class Switch implements PathComponent {
     return undefined
   }
 
-  assign(map: Map, value: any) {
+  assign(map: Node, value: any) {
     if (this.paths.length < 1) throw 'Cannot assign with empty path switch'
-    this.paths[0].assign(map, value)
+    return this.paths[0].assign(map, value)
   }
 }

@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
+    "allowJs": true,
     "lib": [
       "es6"
     ],
     "module": "commonjs",
     "outDir": "lib",
     "removeComments": true,
-    "rootDir": "src",
     "strict": true
-  }
+  },
+  "include": [
+    "src/**/*"
+  ]
 }
