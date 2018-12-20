@@ -1,12 +1,16 @@
 {
   "name": "conf",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Become the configuration",
-  "main": "index.js",
+  "main": "lib/index.js",
   "author": "Luke Smalley",
   "license": "MIT",
   "dependencies": {
+    "@types/fs-extra": "^5.0.4",
     "fs-extra": "^7.0.0",
     "json5": "^2.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^3.2.2"
   }
 }
