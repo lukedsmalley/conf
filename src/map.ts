@@ -3,7 +3,18 @@ import * as fs from 'fs-extra'
 import {parse, join} from 'path'
 import {Path} from './path'
 
-export {Node, Map}
+export {deeplyAssign, Node, Map}
+
+function deeplyAssign(target: any, ...sources: any[]): any {
+  function assign(target: any, source: any) {
+    for (let key of source) {
+      if (!target.hasOwnProperty(key) || target[key] === null || typeof target[key] !== 'object') target[key] = source[key]
+      else assign(target[key], source[key])
+    }
+  }
+  sources.forEach(source => assign(target, source))
+  return target
+}
 
 interface Node {
   getOwn(id: string): any
@@ -42,22 +53,28 @@ class Map implements Node {
     return Path.parse(path).assign(this, value)
   }
 
-  static async loadFromPath(path: string, options: any) {
+  static async loadFromPath(path: string, options: any, defaults: any) {
     try {
       await fs.access(path, fs.constants.R_OK)
     } catch (err) { throw `'${parse(path).name}' could not be read due to ${err}` }
   
+    if (options.writable) {
+      try {
+        await fs.access(path, fs.constants.W_OK)
+      } catch (err) { throw `'${parse(path).name}' is not writable` }
+    }
+
     let stat
     try {
       stat = await fs.lstat(path)
     } catch (err) { throw `Failed to get info for '${parse(path).name}' due to ${err}` }
   
     return stat.isDirectory()
-      ? await Directory.load(path, options)
-      : await File.load(path, options)
+      ? await Directory.load(path, options, defaults)
+      : await File.load(path, options, defaults)
   }
 
-  static loadFromPathSync(path: string, options: any) {
+  static loadFromPathSync(path: string, options: any, defaults: any) {
     try {
       fs.accessSync(path, fs.constants.R_OK)
     } catch (err) { throw `'${parse(path).name}' could not be read due to ${err}` }
@@ -68,8 +85,8 @@ class Map implements Node {
     } catch (err) { throw `Failed to get info for '${parse(path).name}' due to ${err}` }
   
     return stat.isDirectory()
-      ? Directory.loadSync(path, options)
-      : File.loadSync(path, options)
+      ? Directory.loadSync(path, options, defaults)
+      : File.loadSync(path, options, defaults)
   }
 }
 
@@ -98,21 +115,15 @@ abstract class Record extends Map {
 }
 
 class Directory extends Record {
-  static async load(path: string, options: any) {
+  static async load(path: string, options: any, defaults: any) {
     let children
     try {
       children = await fs.readdir(path)
     } catch (err) { throw `Failed to enumerate files in directory '${parse(path).name}' due to ${err}` }
 
-    if (options.writable) {
-      try {
-        await fs.access(path, fs.constants.W_OK)
-      } catch (err) { throw `Directory '${parse(path).name}' is not writable` }
-    }
-
     let dirfile = options.dirfile || options.extension || '.conf'
     let hasDirFile = children.indexOf(dirfile) >= 0 && children.splice(children.indexOf(dirfile), 1)[0]
-    let data: any = hasDirFile ? await Map.loadFromPath(join(path, dirfile), options) : undefined
+    let data: any = hasDirFile ? await Map.loadFromPath(join(path, dirfile), options, defaults) : undefined
     let directory = new Directory(path, options, data)
 
     if (options.filter) {
@@ -125,27 +136,24 @@ class Directory extends Record {
 
     if (options.extension) children = children.filter(child => child.endsWith(options.extension))
 
-    for (let child of children)
-      directory.map[parse(child).name] = await Map.loadFromPath(join(path, child), options)
+    for (let child of children) {
+      let prop = parse(child).name
+      let childDefaults = defaults.hasOwnProperty(prop) && typeof defaults[prop] === 'object' ? defaults[prop] : {}
+      directory.map[prop] = await Map.loadFromPath(join(path, child), options, childDefaults)
+    }
 
     return directory
   }
 
-  static loadSync(path: string, options: any) {
+  static loadSync(path: string, options: any, defaults: any) {
     let children
     try {
       children = fs.readdirSync(path)
     } catch (err) { throw `Failed to enumerate files in directory '${parse(path).name}' due to ${err}` }
 
-    if (options.writable) {
-      try {
-        fs.accessSync(path, fs.constants.W_OK)
-      } catch (err) { throw `Directory '${parse(path).name}' is not writable` }
-    }
-
     let dirfile = options.dirfile || options.extension || '.conf'
     let hasDirFile = children.indexOf(dirfile) >= 0 && children.splice(children.indexOf(dirfile), 1)[0]
-    let data: any = hasDirFile ? Map.loadFromPathSync(join(path, dirfile), options) : undefined
+    let data: any = hasDirFile ? Map.loadFromPathSync(join(path, dirfile), options, defaults) : undefined
     let directory = new Directory(path, options, data)
 
     if (options.filter) {
@@ -158,8 +166,11 @@ class Directory extends Record {
 
     if (options.extension) children = children.filter(child => child.endsWith(options.extension))
 
-    for (let child of children)
-      directory.map[parse(child).name] = Map.loadFromPathSync(join(path, child), options)
+    for (let child of children) {
+      let prop = parse(child).name
+      let childDefaults = defaults.hasOwnProperty(prop) && typeof defaults[prop] === 'object' ? defaults[prop] : {}
+      directory.map[prop] = Map.loadFromPathSync(join(path, child), options, childDefaults)
+    }
 
     return directory
   }
@@ -202,37 +213,25 @@ class Directory extends Record {
 }
 
 class File extends Record {
-  static async load(path: string, options: any) {
+  static async load(path: string, options: any, defaults: any) {
     try {
       await fs.access(path, fs.constants.R_OK)
     } catch (err) { throw `'${parse(path).name}' could not be read due to ${err}` }
   
-    if (options.writable) {
-      try {
-        await fs.access(path, fs.constants.W_OK)
-      } catch (err) { throw `'${parse(path).name}' is not writable` }
-    }
-  
     try {
       let data = await fs.readFile(path, {encoding: options.encoding})
-      return new File(path, options, options.format.parse(data))
+      return new File(path, options, deeplyAssign({}, defaults, options.format.parse(data)))
     } catch (err) { throw `Failed to read '${parse(path).name}' due to ${err}` }
   }
 
-  static loadSync(path: string, options: any) {
+  static loadSync(path: string, options: any, defaults: any) {
     try {
       fs.accessSync(path, fs.constants.R_OK)
     } catch (err) { throw `'${parse(path).name}' could not be read due to ${err}` }
   
-    if (options.writable) {
-      try {
-        fs.accessSync(path, fs.constants.W_OK)
-      } catch (err) { throw `'${parse(path).name}' is not writable` }
-    }
-  
     try {
       let data = fs.readFileSync(path, {encoding: options.encoding})
-      return new File(path, options, options.format.parse(data))
+      return new File(path, options, deeplyAssign({}, defaults, options.format.parse(data)))
     } catch (err) { throw `Failed to read '${parse(path).name}' due to ${err}` }
   }
 
