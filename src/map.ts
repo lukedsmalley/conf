@@ -93,7 +93,6 @@ class Map implements Node {
 abstract class Record extends Map {
   protected readonly path: string
   protected readonly options: any
-  private changed: boolean = false
 
   protected constructor(path: string, options: any, map?: Record | any) {
     super(map instanceof Record ? map.map : map)
@@ -106,7 +105,6 @@ abstract class Record extends Map {
 
   putOwn(id: string, value: any, save?: boolean): Promise<void> {
     super.putOwn(id, value)
-    this.changed = true
     if (!save || !this.options.autosave) return Promise.resolve()
     if (this.options.saveSync) this.saveSync()
     else return this.save()
