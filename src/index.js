@@ -1,11 +1,15 @@
 
 import * as fs from 'fs-extra'
+import {FileMap} from './file-map'
+import {JSON5FileMap} from './json5-file-map'
 import {deeplyAssign, Map, File} from './map'
-import * as json5 from './json5'
 
 module.exports = conf
 
-conf.json5 = json5
+conf.json5 = {
+  load: (file, options, parent) => JSON5FileMap.loadJSON5(file, options, parent),
+  loadSync: (file, options, parent) => JSON5FileMap.loadJSON5Sync(file, options, parent)
+}
 
 let cache = {}
 
@@ -15,7 +19,7 @@ function conf(...args) {
     create: false,    // Save config at first given path if no config is found
     defaults: null,   // Default config structure and values; An exception is thrown if defaults are null and no config is found
     encoding: 'utf8', // Encoding for fs.readFile/writeFile
-    format: json5,    // Object providing parse(str) and stringify(obj) functions
+    format: conf.json5,    // Object providing parse(str) and stringify(obj) functions
     reload: false,    // Bypass cache and force loading of the config files
     autosave: false,  // Save config after map.put is used
     saveOnLoad: true, // Save config immediately after loading and applying default values
@@ -30,9 +34,9 @@ function conf(...args) {
     return (async function() {
       for (let path of paths) {
         try {
-          await fs.access(path, fs.constants.R_OK)
+          await fs.access(path, fs.constants.F_OK)
         } catch (err) { continue }
-        let map = await Map.loadFromPath(path, options, options.defaults || {})
+        let map = await FileMap.load(path, options, null)
         if (options.saveOnLoad) await map.save()
         for (let path of paths) cache[path] = map
         return map
@@ -40,7 +44,7 @@ function conf(...args) {
 
       if (!options.defaults) throw 'Configuration does not exist at the given path(s)'
 
-      let map = cache[paths[0]] = new File(paths[0], options, options.defaults || {})
+      let map = cache[paths[0]] = new File(paths[0], options, null)
       if (options.create) await map.save()
       return map
     })()
@@ -48,17 +52,17 @@ function conf(...args) {
 
   for (let path of paths) {
     try {
-      fs.accessSync(path, fs.constants.R_OK)
+      fs.accessSync(path, fs.constants.F_OK)
     } catch (err) { continue }
-    let map = Map.loadFromPathSync(path, options)
+    let map = FileMap.loadSync(path, options, null)
     if (options.saveOnLoad) map.saveSync()
     for (let path of paths) cache[path] = map
-    return cache[path]
+    return map
   }
-  
+
   if (!options.defaults) throw 'Configuration does not exist at the given path(s)'
 
-  let map = cache[paths[0]] = new File(paths[0], options, options.defaults || {})
+  let map = cache[paths[0]] = new File(paths[0], options, null)
   if (options.create) map.saveSync()
   return map
 }
