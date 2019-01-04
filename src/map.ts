@@ -1,5 +1,6 @@
 
 import {isObject} from './utilities'
+import { Path } from './path';
 
 export {Map}
 
@@ -22,9 +23,9 @@ class Map {
   clone(parent: Map | null): Map {
     let map = new Map(parent)
     for (let key in this.properties)
-      map.put(key, this.properties[key] instanceof Map
+      map.setProperty(key, this.properties[key] instanceof Map
           ? this.properties[key].clone()
-          : this.properties[key])
+          : this.properties[key], false)
     return map
   }
 
@@ -53,11 +54,11 @@ class Map {
     this.parent ? this.parent.saveSync() : null
   }
 
-  get(key: string): any {
+  getProperty(key: string): any {
     return this.properties[key]
   }
 
-  put(key: string, value: any, save?: boolean): any {
+  setProperty(key: string, value: any, save: boolean): any {
     if (this.properties.hasOwnProperty(key) && this.properties[key] instanceof Map)
       this.properties[key].parent = null
 
@@ -69,5 +70,13 @@ class Map {
 
     let autosave = save ? this.autoSave() : undefined
     return autosave instanceof Promise ? autosave.then(() => value) : value
+  }
+
+  get(query: string): any {
+    return Path.parse(query).travel(this, false)
+  }
+
+  set(query: string, value: any): any {
+    return Path.parse(query).assign(this, value)
   }
 }

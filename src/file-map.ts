@@ -18,7 +18,7 @@ abstract class FileMap extends Map {
 
   getSerializablePropertyKeys(): any {
     return super.getSerializablePropertyKeys()
-        .filter(key => !(this.get(key) instanceof FileMap))
+        .filter(key => !(this.getProperty(key) instanceof FileMap))
   }
 
   protected autoSave(): any {
@@ -32,8 +32,8 @@ abstract class FileMap extends Map {
   async save() {
     if (this.file instanceof Directory) {
       for (let key of super.getSerializablePropertyKeys()
-          .filter(key => this.get(key) instanceof FileMap)) {
-        await this.get(key).save()
+          .filter(key => this.getProperty(key) instanceof FileMap)) {
+        await this.getProperty(key).save()
       }
 
       if (this.getSerializablePropertyKeys().length === 0) return
@@ -49,8 +49,8 @@ abstract class FileMap extends Map {
   saveSync() {
     if (this.file instanceof Directory) {
       for (let key of super.getSerializablePropertyKeys()
-          .filter(key => this.get(key) instanceof FileMap)) {
-        this.get(key).saveSync()
+          .filter(key => this.getProperty(key) instanceof FileMap)) {
+        this.getProperty(key).saveSync()
       }
 
       if (this.getSerializablePropertyKeys().length === 0) return
