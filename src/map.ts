@@ -1,6 +1,10 @@
 
+import {join} from 'path'
+import {Path} from './path'
+import {File} from './file'
+import {FileMap} from './file-map'
+import {Directory} from './directory'
 import {isObject} from './utilities'
-import { Path } from './path';
 
 export {Map}
 
@@ -11,7 +15,7 @@ class Map {
   protected constructor(parent: Map | null, properties?: any) {
     this.parent = parent
     if (isObject(properties)) {
-      for (let key in properties) {
+      for (let key in properties) {   
         if (properties[key] instanceof Array) this.properties[key] = properties[key]
         else if (properties[key] instanceof Map) this.properties[key] = properties[key].clone(this)
         else if (typeof properties[key] === 'object') this.properties[key] = new Map(this, properties[key])
@@ -78,5 +82,32 @@ class Map {
 
   set(query: string, value: any): any {
     return Path.parse(query).assign(this, value)
+  }
+
+  assignDefaults(defaults: any, path: string, options: any) {
+    for (let key in this.properties)
+      if (this.properties[key] instanceof Map && defaults.hasOwnProperty(key) &&
+          isObject(defaults[key]))
+        this.properties[key].weaklyAssign(defaults[key], join(path, key))
+
+    for (let key in defaults) {
+      if (key === '$$file' || key === '$$dir') continue
+
+      if (!this.properties.hasOwnProperty(key)) { //Recursive here to create $$files and $$dirs
+        if (defaults[key].$$dir) {
+          let map = new options.format(new Directory(join(path, key), options))
+          map.assignDefaults(defaults[key], join(path, key), options)
+          this.setProperty(key, map, false)
+        } else if (defaults[key].$$file) {
+          let map = new options.format(new File(join(path, defaults[key].$$file), options))
+          map.assignDefaults(defaults[key], join(path, key), options)
+          this.setProperty(key, map, false)
+        } else {
+          this.setProperty(key, defaults[key], false)
+        }
+      }
+    }
+
+    return this
   }
 }

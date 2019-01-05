@@ -2,14 +2,10 @@
 import * as fs from 'fs-extra'
 import {FileMap} from './file-map'
 import {JSON5FileMap} from './json5-file-map'
-import {deeplyAssign, Map, File} from './map'
 
 module.exports = conf
 
-conf.json5 = {
-  load: (file, options, parent) => JSON5FileMap.loadJSON5(file, options, parent),
-  loadSync: (file, options, parent) => JSON5FileMap.loadJSON5Sync(file, options, parent)
-}
+conf.json5 = JSON5FileMap
 
 let cache = {}
 
@@ -36,7 +32,7 @@ function conf(...args) {
         try {
           await fs.access(path, fs.constants.F_OK)
         } catch (err) { continue }
-        let map = await FileMap.load(path, options, null)
+        let map = await FileMap.load(path, options, null, options.defaults || {})
         if (options.saveOnLoad) await map.save()
         for (let path of paths) cache[path] = map
         return map
