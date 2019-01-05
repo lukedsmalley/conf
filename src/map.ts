@@ -2,7 +2,6 @@
 import {join} from 'path'
 import {Path} from './path'
 import {File} from './file'
-import {FileMap} from './file-map'
 import {Directory} from './directory'
 import {isObject} from './utilities'
 
@@ -93,7 +92,7 @@ class Map {
     for (let key in defaults) {
       if (key === '$$file' || key === '$$dir') continue
 
-      if (!this.properties.hasOwnProperty(key)) { //Recursive here to create $$files and $$dirs
+      if (!this.properties.hasOwnProperty(key)) {
         if (defaults[key].$$dir) {
           let map = new options.format(new Directory(join(path, key), options))
           map.assignDefaults(defaults[key], join(path, key), options)

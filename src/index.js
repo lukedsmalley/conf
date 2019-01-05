@@ -1,6 +1,6 @@
 
 import * as fs from 'fs-extra'
-import {FileMap} from './file-map'
+import {File} from './file-map'
 import {JSON5FileMap} from './json5-file-map'
 
 module.exports = conf
@@ -32,7 +32,11 @@ function conf(...args) {
         try {
           await fs.access(path, fs.constants.F_OK)
         } catch (err) { continue }
-        let map = await FileMap.load(path, options, null, options.defaults || {})
+        let map
+        try {
+          let file = await File.from(path, options)
+          map = await file.load(null)
+        } catch (err) { throw `Failed to load config at '${path}' due to ${err}` }
         if (options.saveOnLoad) await map.save()
         for (let path of paths) cache[path] = map
         return map
@@ -40,7 +44,8 @@ function conf(...args) {
 
       if (!options.defaults) throw 'Configuration does not exist at the given path(s)'
 
-      let map = cache[paths[0]] = new File(paths[0], options, null)
+      let map = cache[paths[0]] = new options.format(new File(paths[0], options), null)
+      map.assignDefaults(options.defaults, paths[0], options)
       if (options.create) await map.save()
       return map
     })()
@@ -50,7 +55,11 @@ function conf(...args) {
     try {
       fs.accessSync(path, fs.constants.F_OK)
     } catch (err) { continue }
-    let map = FileMap.loadSync(path, options, null)
+    let map
+    try {
+      let file = File.fromSync(path, options)
+      map = file.loadSync(null)
+    } catch (err) { throw `Failed to load config at '${path}' due to ${err}` }
     if (options.saveOnLoad) map.saveSync()
     for (let path of paths) cache[path] = map
     return map
@@ -58,7 +67,8 @@ function conf(...args) {
 
   if (!options.defaults) throw 'Configuration does not exist at the given path(s)'
 
-  let map = cache[paths[0]] = new File(paths[0], options, null)
+  let map = cache[paths[0]] = new options.format(new File(paths[0], options), null)
+  map.assignDefaults(options.defaults, paths[0], options)
   if (options.create) map.saveSync()
   return map
 }
