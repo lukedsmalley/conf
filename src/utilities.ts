@@ -6,12 +6,12 @@ export {deeplyAssign, isObject, isAccessible, isAccessibleSync, isDirectory, isD
 
 function deeplyAssign(target: any, ...sources: any[]): any {
   function assign(target: any, source: any) {
-    for (let key of source) {
+    for (let key in source) {
       if (!target.hasOwnProperty(key) || target[key] === null || typeof target[key] !== 'object') target[key] = source[key]
       else assign(target[key], source[key])
     }
   }
-  sources.forEach(source => assign(target, source))
+  for (let source of sources) assign(target, source)
   return target
 }
 

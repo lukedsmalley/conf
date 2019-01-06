@@ -4,9 +4,9 @@ import {join, parse} from 'path'
 import {File} from './file'
 import {FileMap} from './file-map'
 import {Map} from './map'
-import {isObject} from './utilities'
+import {isObject, isDirectory, isDirectorySync} from './utilities'
 
-export {Directory}
+export {Directory, fileFrom, fileFromSync}
 
 class Directory extends File {
   private readonly dirfilePath: string
@@ -33,13 +33,13 @@ class Directory extends File {
       children = children.filter(child => child.endsWith(this.options.extension))
 
     let files = []
-    for (let child of children.filter(child => child !== this.options.dirfile)) {
-      let defaultsOverlay = (this.options.defaults.hasOwnProperty(parse(child).name) &&
-          isObject(this.options.defaults[parse(child).name]))
-            ? {defaults: this.options.defaults[parse(child).name]}
+    for (let child of children.filter(child => child !== this.dirfile)) {
+      let defaultsOverlay = (this.defaults.hasOwnProperty(parse(child).name) &&
+          isObject(this.defaults[parse(child).name]))
+            ? {defaults: this.defaults[parse(child).name] || {}}
             : {defaults: {}}
       let options = Object.assign({}, this.options, defaultsOverlay)
-      files.push(await File.from(join(this.path, child), options))
+      files.push(await fileFrom(join(this.path, child), options))
     }
 
     return files
@@ -62,13 +62,13 @@ class Directory extends File {
       children = children.filter(child => child.endsWith(this.options.extension))
 
     let files = []
-    for (let child of children.filter(child => child !== this.options.dirfile)) {
-      let defaultsOverlay = (this.options.defaults.hasOwnProperty(parse(child).name) &&
-          isObject(this.options.defaults[parse(child).name]))
-            ? {defaults: this.options.defaults[parse(child).name]}
+    for (let child of children.filter(child => child !== this.dirfile)) {
+      let defaultsOverlay = (this.defaults.hasOwnProperty(parse(child).name) &&
+          isObject(this.defaults[parse(child).name]))
+            ? {defaults: this.defaults[parse(child).name] || {}}
             : {defaults: {}}
       let options = Object.assign({}, this.options, defaultsOverlay)
-      files.push(File.fromSync(join(this.path, child), options))
+      files.push(fileFromSync(join(this.path, child), options))
     }
 
     return files
@@ -87,7 +87,7 @@ class Directory extends File {
 
     for (let child of children) map.setProperty(child.name, await child.load(map), false)
 
-    return map.assignDefaults(this.options.defaults)
+    return map.assignDefaults(this.defaults)
   }
 
   loadSync(parent: Map | null): FileMap {
@@ -103,16 +103,24 @@ class Directory extends File {
 
     for (let child of children) map.setProperty(child.name, child.loadSync(map), false)
 
-    return map.assignDefaults(this.options.defaults)
+    return map.assignDefaults(this.defaults)
   }
 
   async write(data: string | Buffer) {
     await fs.mkdirs(this.path)
-    await fs.writeFile(join(this.path, this.options.dirfile), data, {encoding: this.options.encoding})
+    await fs.writeFile(join(this.path, this.dirfile), data, {encoding: this.options.encoding})
   }
 
   writeSync(data: string | Buffer) {
     fs.mkdirsSync(this.path)
-    fs.writeFileSync(join(this.path, this.options.dirfile), data, {encoding: this.options.encoding})
+    fs.writeFileSync(join(this.path, this.dirfile), data, {encoding: this.options.encoding})
   }
+}
+
+async function fileFrom(path: string, options: any): Promise<File> {
+  return (await isDirectory(path)) ? new Directory(path, options) : new File(path, options)
+}
+
+function fileFromSync(path: string, options: any): File {
+  return isDirectorySync(path) ? new Directory(path, options) : new File(path, options)
 }

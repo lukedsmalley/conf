@@ -1,7 +1,9 @@
 
 import * as fs from 'fs-extra'
-import {File} from './file-map'
+import {fileFrom, fileFromSync} from './directory'
+import {File} from './file'
 import {JSON5FileMap} from './json5-file-map'
+import {deeplyAssign} from './utilities'
 
 module.exports = conf
 
@@ -18,10 +20,9 @@ function conf(...args) {
     format: conf.json5,    // Object providing parse(str) and stringify(obj) functions
     reload: false,    // Bypass cache and force loading of the config files
     autosave: false,  // Save config after map.put is used
-    saveOnLoad: true, // Save config immediately after loading and applying default values
+    saveOnLoad: false, // Save config immediately after loading and applying default values
     saveSync: false,  // Make autosave use synchronous writeFile
-    sync: false,      // Load config syncronously
-    writable: false   // Assert writability for config files when loaded
+    sync: false      // Load config syncronously
   }, ...args.filter(arg => typeof arg === 'object'))
 
   if (!options.reload) for (let path of paths) if (cache.hasOwnProperty(path)) return cache[path]
@@ -34,7 +35,7 @@ function conf(...args) {
         } catch (err) { continue }
         let map
         try {
-          let file = await File.from(path, options)
+          let file = await fileFrom(path, options)
           map = await file.load(null)
         } catch (err) { throw `Failed to load config at '${path}' due to ${err}` }
         if (options.saveOnLoad) await map.save()
@@ -57,7 +58,7 @@ function conf(...args) {
     } catch (err) { continue }
     let map
     try {
-      let file = File.fromSync(path, options)
+      let file = fileFromSync(path, options)
       map = file.loadSync(null)
     } catch (err) { throw `Failed to load config at '${path}' due to ${err}` }
     if (options.saveOnLoad) map.saveSync()

@@ -19,9 +19,9 @@ abstract class FileMap extends Map {
   }
 
   protected autoSave(): any {
-    if (!this.file.options.autoSave) return undefined
-    if (this.file.options.autoSaveSync) this.saveSync()
-    return this.file.options.autoSaveSync ? undefined : this.save()
+    if (!this.file.options.autosave) return undefined
+    if (this.file.options.saveSync) this.saveSync()
+    return this.file.options.saveSync ? undefined : this.save()
   }
 
   protected abstract serialize(): string | Buffer

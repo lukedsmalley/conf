@@ -1,10 +1,9 @@
 
 import * as fs from 'fs-extra'
 import {parse} from 'path'
-import {Directory} from './directory';
 import {FileMap} from './file-map';
 import {Map} from './map'
-import {isAccessible, isAccessibleSync, isDirectory, isDirectorySync} from './utilities'
+import {isAccessible, isAccessibleSync} from './utilities'
 
 export {File}
 
@@ -14,6 +13,7 @@ class File {
   readonly basePath: string
   readonly options: any
   readonly dirfile: string
+  readonly defaults: any
 
   constructor(path: string, options: any) {
     this.path = path
@@ -21,6 +21,7 @@ class File {
     this.basePath = parse(path).dir
     this.options = options
     this.dirfile = options.dirfile || options.extension || '.conf'
+    this.defaults = options.defaults || {}
   }
 
   async load(parent: Map | null): Promise<FileMap> {
@@ -28,7 +29,7 @@ class File {
       throw `Configuration is unwritable`
     let data = await fs.readFile(this.path, {encoding: this.options.encoding})
     let map = this.options.format.parse(data, this, parent)
-    return map.assignDefaults(this.options.defaults)
+    return map.assignDefaults(this.defaults)
   }
 
   loadSync(parent: Map | null): FileMap {
@@ -36,7 +37,7 @@ class File {
       throw `Configuration is unwritable`
     let data = fs.readFileSync(this.path, {encoding: this.options.encoding})
     let map = this.options.format.parse(data, this, parent)
-    return map.assignDefaults(this.options.defaults)
+    return map.assignDefaults(this.defaults)
   }
 
   async write(data: string | Buffer) {
@@ -47,13 +48,5 @@ class File {
   writeSync(data: string | Buffer) {
     fs.mkdirsSync(this.basePath)
     fs.writeFileSync(this.path, data, {encoding: this.options.encoding})
-  }
-
-  static async from(path: string, options: any): Promise<File> {
-    return (await isDirectory(path)) ? new Directory(path, options) : new File(path, options)
-  }
-
-  static fromSync(path: string, options: any): File {
-    return isDirectorySync(path) ? new Directory(path, options) : new File(path, options)
   }
 }

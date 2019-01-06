@@ -10,7 +10,7 @@ class Path {
   private components: PathComponent[] = []
 
   push(component: PathComponent) {
-    this.components.push
+    this.components.push(component)
   }
 
   travel(map: Map, force: boolean): any {

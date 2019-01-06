@@ -87,7 +87,7 @@ class Map {
     for (let key in this.properties)
       if (this.properties[key] instanceof Map && defaults.hasOwnProperty(key) &&
           isObject(defaults[key]))
-        this.properties[key].weaklyAssign(defaults[key], join(path, key))
+        this.properties[key].assignDefaults(defaults[key], join(path, key))
 
     for (let key in defaults) {
       if (key === '$$file' || key === '$$dir') continue
@@ -95,11 +95,11 @@ class Map {
       if (!this.properties.hasOwnProperty(key)) {
         if (defaults[key].$$dir) {
           let map = new options.format(new Directory(join(path, key), options))
-          map.assignDefaults(defaults[key], join(path, key), options)
+          map.assignDefaults(defaults[key] || {}, join(path, key), options)
           this.setProperty(key, map, false)
         } else if (defaults[key].$$file) {
           let map = new options.format(new File(join(path, defaults[key].$$file), options))
-          map.assignDefaults(defaults[key], join(path, key), options)
+          map.assignDefaults(defaults[key] || {}, join(path, key), options)
           this.setProperty(key, map, false)
         } else {
           this.setProperty(key, defaults[key], false)

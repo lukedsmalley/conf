@@ -1,6 +1,6 @@
 {
   "name": "conf",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Quick but perhaps not entirely dirty configuration file loader for Node.js",
   "main": "lib/index.js",
   "author": "Luke Smalley",

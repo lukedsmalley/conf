@@ -12,10 +12,10 @@ class JSON5FileMap extends FileMap {
   }
 
   serialize(): string {
-    return stringify(this.eject())
+    return stringify(this.eject(), null, 2)
   }
 
-  static async parse(data: string | Buffer, file: File, parent: Map | null): Promise<JSON5FileMap> {
+  static parse(data: string | Buffer, file: File, parent: Map | null): JSON5FileMap {
     return new JSON5FileMap(file, parent, parse(data as string))
   }
 }

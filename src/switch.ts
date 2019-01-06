@@ -9,7 +9,7 @@ class Switch implements PathComponent {
   private paths: Path[] = []
 
   push(path: Path) {
-    this.paths.push
+    this.paths.push(path)
   }
 
   travel(map: Map, force: boolean): any {
