@@ -20,8 +20,7 @@ class File {
     this.name = parse(path).name
     this.basePath = parse(path).dir
     this.isDirectory = isDirectory
-    this.options = Object.assign({}, options)
-    this.options.dirFile = options.dirFile || options.extension || '.conf'
+    this.options = Object.assign({}, options, {dirFile: options.dirFile || options.extension || '.conf'})
   }
 
   private deriveOptions(fileName: string): any {
@@ -76,50 +75,76 @@ class File {
       throw `Configuration at '${this.path}' is unwritable`
 
     let map
-    try {
-      let path = this.isDirectory ? this.path : join(this.path, this.options.dirFile)
-      let data = await fs.readFile(path, {encoding: this.options.encoding})
-      map = this.options.format.parse(data, this, parent)
-    } catch (err) {
-      throw `Failed to read config at '${this.path}' due to ${err}`
+    if (this.isDirectory) {
+      let path = join(this.path, this.options.dirFile)
+      if (await isAccessible(path, fs.constants.F_OK)) {
+        try {
+          let data = await fs.readFile(path, {encoding: this.options.encoding})
+          map = this.options.format.parse(data, this, parent)
+        } catch (err) {
+          throw `Failed to read config at '${path}' due to ${err}`
+        }
+      } else {
+        map = new this.options.format(this, parent)
+      }
+    } else {
+      try {
+        let data = await fs.readFile(this.path, {encoding: this.options.encoding})
+        map = this.options.format.parse(data, this, parent)
+      } catch (err) {
+        throw `Failed to read config at '${this.path}' due to ${err}`
+      }
     }
-    
+
     if (this.isDirectory)
       for (let child of await this.enumerate())
         map.setProperty(child.name, await child.load(map), false)
 
-    return map.assignDefaults(this.options.defaults)
+    return map.assignDefaults(this.options.defaults || {}, this.path, this.options)
   }
 
   loadSync(parent: Map | null): FileMap {
     if (this.options.autoSave && !isAccessibleSync(this.path, fs.constants.W_OK))
       throw `Configuration at '${this.path}' is unwritable`
 
-    let map
-    try {
-      let path = this.isDirectory ? this.path : join(this.path, this.options.dirFile)
-      let data = fs.readFileSync(path, {encoding: this.options.encoding})
-      map = this.options.format.parse(data, this, parent)
-    } catch (err) {
-      throw `Failed to read config at '${this.path}' due to ${err}`
-    }
+      let map
+      if (this.isDirectory) {
+        let path = join(this.path, this.options.dirFile)
+        if (isAccessibleSync(path, fs.constants.F_OK)) {
+          try {
+            let data = fs.readFileSync(path, {encoding: this.options.encoding})
+            map = this.options.format.parse(data, this, parent)
+          } catch (err) {
+            throw `Failed to read config at '${path}' due to ${err}`
+          }
+        } else {
+          map = new this.options.format(this, parent)
+        }
+      } else {
+        try {
+          let data = fs.readFileSync(this.path, {encoding: this.options.encoding})
+          map = this.options.format.parse(data, this, parent)
+        } catch (err) {
+          throw `Failed to read config at '${this.path}' due to ${err}`
+        }
+      }
     
     if (this.isDirectory)
       for (let child of this.enumerateSync())
         map.setProperty(child.name, child.loadSync(map), false)
 
-    return map.assignDefaults(this.options.defaults)
+    return map.assignDefaults(this.options.defaults || {}, this.path, this.options)
   }
 
   async write(data: string | Buffer) {
-    let path = this.isDirectory ? this.path : join(this.path, this.options.dirFile)
-    await fs.mkdirs(this.isDirectory ? this.basePath : this.path)
+    let path = this.isDirectory ? join(this.path, this.options.dirFile) : this.path
+    await fs.mkdirs(this.isDirectory ? this.path : this.basePath)
     await fs.writeFile(path, data, {encoding: this.options.encoding})
   }
 
   writeSync(data: string | Buffer) {
-    let path = this.isDirectory ? this.path : join(this.path, this.options.dirFile)
-    fs.mkdirsSync(this.isDirectory ? this.basePath : this.path)
+    let path = this.isDirectory ? join(this.path, this.options.dirFile) : this.path
+    fs.mkdirsSync(this.isDirectory ? this.path : this.basePath)
     fs.writeFileSync(path, data, {encoding: this.options.encoding})
   }
 }

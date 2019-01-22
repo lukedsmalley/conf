@@ -16,7 +16,7 @@ class Map {
       for (let key in properties) {   
         if (properties[key] instanceof Array) this.properties[key] = properties[key]
         else if (properties[key] instanceof Map) this.properties[key] = properties[key].clone(this)
-        else if (typeof properties[key] === 'object') this.properties[key] = new Map(this, properties[key])
+        else if (properties[key] !== null && typeof properties[key] === 'object') this.properties[key] = new Map(this, properties[key])
         else this.properties[key] = properties[key]
       }
     }
