@@ -1,5 +1,4 @@
 
-import {Directory} from './directory'
 import {File} from './file'
 import {Map} from './map'
 
@@ -27,7 +26,7 @@ abstract class FileMap extends Map {
   protected abstract serialize(): string | Buffer
 
   async save() {
-    if (this.file instanceof Directory) {
+    if (this.file.isDirectory) {
       for (let key of super.getSerializablePropertyKeys()
           .filter(key => this.getProperty(key) instanceof FileMap)) {
         await this.getProperty(key).save()
@@ -44,7 +43,7 @@ abstract class FileMap extends Map {
   }
 
   saveSync() {
-    if (this.file instanceof Directory) {
+    if (this.file.isDirectory) {
       for (let key of super.getSerializablePropertyKeys()
           .filter(key => this.getProperty(key) instanceof FileMap)) {
         this.getProperty(key).saveSync()

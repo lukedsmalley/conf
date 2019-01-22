@@ -2,7 +2,6 @@
 import {join} from 'path'
 import {Path} from './path'
 import {File} from './file'
-import {Directory} from './directory'
 import {isObject} from './utilities'
 
 export {Map}
@@ -94,11 +93,11 @@ class Map {
 
       if (!this.properties.hasOwnProperty(key)) {
         if (defaults[key].$$dir) {
-          let map = new options.format(new Directory(join(path, key), options))
+          let map = new options.format(new File(join(path, key), true, options), null)
           map.assignDefaults(defaults[key] || {}, join(path, key), options)
           this.setProperty(key, map, false)
         } else if (defaults[key].$$file) {
-          let map = new options.format(new File(join(path, defaults[key].$$file), options))
+          let map = new options.format(new File(join(path, defaults[key].$$file), false, options), null)
           map.assignDefaults(defaults[key] || {}, join(path, key), options)
           this.setProperty(key, map, false)
         } else {

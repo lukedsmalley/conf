@@ -1,7 +1,6 @@
 
 import * as fs from 'fs-extra'
-import {fileFrom, fileFromSync} from './directory'
-import {File} from './file'
+import {File, fileFrom, fileFromSync} from './file'
 import {JSON5FileMap} from './json5-file-map'
 import {deeplyAssign} from './utilities'
 
@@ -33,11 +32,8 @@ function conf(...args) {
         try {
           await fs.access(path, fs.constants.F_OK)
         } catch (err) { continue }
-        let map
-        try {
-          let file = await fileFrom(path, options)
-          map = await file.load(null)
-        } catch (err) { throw `Failed to load config at '${path}' due to ${err}` }
+        let file = await fileFrom(path, options)
+        let map = await file.load(null)
         if (options.saveOnLoad) await map.save()
         for (let path of paths) cache[path] = map
         return map
@@ -45,7 +41,7 @@ function conf(...args) {
 
       if (!options.defaults) throw 'Configuration does not exist at the given path(s)'
 
-      let map = cache[paths[0]] = new options.format(new File(paths[0], options), null)
+      let map = cache[paths[0]] = new options.format(new File(paths[0], false, options), null)
       map.assignDefaults(options.defaults, paths[0], options)
       if (options.create) await map.save()
       return map
@@ -56,11 +52,8 @@ function conf(...args) {
     try {
       fs.accessSync(path, fs.constants.F_OK)
     } catch (err) { continue }
-    let map
-    try {
-      let file = fileFromSync(path, options)
-      map = file.loadSync(null)
-    } catch (err) { throw `Failed to load config at '${path}' due to ${err}` }
+    let file = fileFromSync(path, options)
+    let map = file.loadSync(null)
     if (options.saveOnLoad) map.saveSync()
     for (let path of paths) cache[path] = map
     return map
@@ -68,7 +61,7 @@ function conf(...args) {
 
   if (!options.defaults) throw 'Configuration does not exist at the given path(s)'
 
-  let map = cache[paths[0]] = new options.format(new File(paths[0], options), null)
+  let map = cache[paths[0]] = new options.format(new File(paths[0], false, options), null)
   map.assignDefaults(options.defaults, paths[0], options)
   if (options.create) map.saveSync()
   return map
