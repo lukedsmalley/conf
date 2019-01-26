@@ -9,6 +9,10 @@ export {Path}
 class Path {
   private components: PathComponent[] = []
 
+  length(): number {
+    return this.components.length
+  }
+
   push(component: PathComponent) {
     this.components.push(component)
   }
@@ -30,13 +34,12 @@ class Path {
   }
 
   static parse(query: string): Switch {
-    let stack: any[] = ['', new Path(), new Switch()]
+    let stack: any[] = [new Step(), new Path(), new Switch()]
 
     function combineAndReplace(n: number, ...replace: any[]) {
       if (stack.length === 1) throw 'Closing brace without opening brace'
       let top = stack.shift()
-      if (typeof top === 'string') stack[0].push(new Step(top))
-      else stack[0].push(top)
+      if (top.length() > 0) stack[0].push(top)
       if (n > 1) combineAndReplace(n-1)
       stack.unshift(...replace)
     }
@@ -44,11 +47,11 @@ class Path {
     for (let i = 0; i < query.length; i++) {
       let c = query.charAt(i)
       try {
-        if (c === '.') combineAndReplace(1, '')
-        else if (c === '|') combineAndReplace(2, '', new Path())
-        else if (c === '[') combineAndReplace(1, '', new Path(), new Switch())
-        else if (c === ']') combineAndReplace(3, '')
-        else stack[0] += c
+        if (c === '.') combineAndReplace(1, new Step())
+        else if (c === '|') combineAndReplace(2, new Step(), new Path())
+        else if (c === '[') combineAndReplace(1, new Step(), new Path(), new Switch())
+        else if (c === ']') combineAndReplace(3, new Step())
+        else stack[0].push(c)
       } catch (err) {
         throw `${err} (<path>:${i})`
       }
@@ -57,5 +60,9 @@ class Path {
     combineAndReplace(2)
     if (stack.length > 1) throw 'Unterminated brace expression'
     return stack[0]
+  }
+
+  toString(): string {
+    return this.components.map(c => c.toString()).join('.')
   }
 }

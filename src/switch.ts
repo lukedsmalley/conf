@@ -8,6 +8,10 @@ export {Switch}
 class Switch implements PathComponent {
   private paths: Path[] = []
 
+  length(): number {
+    return this.paths.length
+  }
+
   push(path: Path) {
     this.paths.push(path)
   }
@@ -23,5 +27,9 @@ class Switch implements PathComponent {
   assign(map: Map, value: any) {
     if (this.paths.length < 1) throw 'Cannot assign with empty path switch'
     this.paths[0].assign(map, value)
+  }
+
+  toString(): string {
+    return `[${this.paths.map(p => p.toString()).join('|')}]`
   }
 }
